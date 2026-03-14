@@ -3,4 +3,16 @@ application:
         fast: 5
         slow: 10
     scheduler:
-        frequency: 5000
+        frequency: 10000
+    strategy:
+        trend-ema-length: 100
+        macd-short: 12
+        macd-long: 26
+        macd-signal-length: 9
+        stop-gain: 0.5
+        stop-loss: 0.3
+    trading:
+        symbol: ETHUSDT
+        interval: 5m
+        initial-budget: 1000.0
+        fee: 0.001

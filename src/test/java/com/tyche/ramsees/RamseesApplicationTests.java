@@ -1,7 +1,9 @@
 package com.tyche.ramsees;
 
-import com.tyche.ramsees.binance.BinanceDataFetcherMock;
+import com.tyche.ramsees.domain.model.MarketBar;
+import com.tyche.ramsees.util.BinanceHistoricalFetcher;
 import java.text.SimpleDateFormat;
+import java.util.List;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -11,10 +13,8 @@ import org.jfree.chart.ui.ApplicationFrame;
 import org.jfree.data.time.Millisecond;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.ui.RefineryUtilities;
-import org.springframework.context.annotation.Bean;
-import org.springframework.web.client.RestTemplate;
-import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
+import org.ta4j.core.BaseBarSeriesBuilder;
 import org.ta4j.core.Indicator;
 import org.ta4j.core.indicators.SMAIndicator;
 import org.ta4j.core.indicators.bollinger.BollingerBandsLowerIndicator;
@@ -26,75 +26,60 @@ import org.ta4j.core.num.Num;
 
 class RamseesApplicationTests {
 
-   public static void main(String... args){
-       var binanceDataFetcher = new BinanceDataFetcherMock();
-       var series = binanceDataFetcher.getSeries();
-       ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
-       SMAIndicator avg20 = new SMAIndicator(closePrice, 20);
-       StandardDeviationIndicator sd = new StandardDeviationIndicator(avg20, 3);
+    public static void main(String... args) {
+        var historicalBars = new BinanceHistoricalFetcher().fetchHistoricalBars();
+        var series = toBarSeries(historicalBars);
 
-       // Bollinger bands
-       BollingerBandsMiddleIndicator middleBBand = new BollingerBandsMiddleIndicator(avg20);
-       BollingerBandsLowerIndicator lowBBand = new BollingerBandsLowerIndicator(middleBBand, sd);
-       BollingerBandsUpperIndicator upBBand = new BollingerBandsUpperIndicator(middleBBand, sd);
+        var closePrice = new ClosePriceIndicator(series);
+        var avg20 = new SMAIndicator(closePrice, 20);
+        var sd = new StandardDeviationIndicator(avg20, 3);
 
-       /*
-        * Building chart dataset
-        */
-       TimeSeriesCollection dataset = new TimeSeriesCollection();
-       dataset.addSeries(buildChartBarSeries(series, closePrice, "ETH"));
-       dataset.addSeries(buildChartBarSeries(series, lowBBand, "Low Bollinger Band"));
-       dataset.addSeries(buildChartBarSeries(series, middleBBand, "Middle Bollinger Band"));
-       dataset.addSeries(buildChartBarSeries(series, upBBand, "High Bollinger Band"));
+        var middleBBand = new BollingerBandsMiddleIndicator(avg20);
+        var lowBBand = new BollingerBandsLowerIndicator(middleBBand, sd);
+        var upBBand = new BollingerBandsUpperIndicator(middleBBand, sd);
 
-       /*
-        * Creating the chart
-        */
-       JFreeChart chart = ChartFactory.createTimeSeriesChart("ETH Close Prices", // title
-           "Date", // x-axis label
-           "Price Per Unit", // y-axis label
-           dataset, // data
-           true, // create legend?
-           true, // generate tooltips?
-           false // generate URLs?
-       );
-       XYPlot plot = (XYPlot) chart.getPlot();
-       DateAxis axis = (DateAxis) plot.getDomainAxis();
-       axis.setDateFormatOverride(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
+        var dataset = new TimeSeriesCollection();
+        dataset.addSeries(buildChartSeries(series, closePrice, "ETH"));
+        dataset.addSeries(buildChartSeries(series, lowBBand, "Low Bollinger Band"));
+        dataset.addSeries(buildChartSeries(series, middleBBand, "Middle Bollinger Band"));
+        dataset.addSeries(buildChartSeries(series, upBBand, "High Bollinger Band"));
 
-       /*
-        * Displaying the chart
-        */
-       displayChart(chart);
-   }
+        JFreeChart chart = ChartFactory.createTimeSeriesChart("ETH Close Prices",
+            "Date", "Price Per Unit", dataset, true, true, false);
+        XYPlot plot = (XYPlot) chart.getPlot();
+        ((DateAxis) plot.getDomainAxis()).setDateFormatOverride(
+            new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
 
-    /**
-     * Displays a chart in a frame.
-     *
-     * @param chart the chart to be displayed
-     */
+        displayChart(chart);
+    }
+
+    private static BarSeries toBarSeries(List<MarketBar> bars) {
+        var series = new BaseBarSeriesBuilder().withName("CHART").build();
+        for (var bar : bars) {
+            series.addBar(bar.getTimestamp(), bar.getOpen(), bar.getHigh(),
+                bar.getLow(), bar.getClose(), bar.getVolume());
+        }
+        return series;
+    }
+
     private static void displayChart(JFreeChart chart) {
-        // Chart panel
-        ChartPanel panel = new ChartPanel(chart);
+        var panel = new ChartPanel(chart);
         panel.setFillZoomRectangle(true);
         panel.setMouseWheelEnabled(true);
         panel.setPreferredSize(new java.awt.Dimension(500, 270));
-        // Application frame
-        ApplicationFrame frame = new ApplicationFrame("Ta4j example - Indicators to chart");
+        var frame = new ApplicationFrame("Ta4j example - Indicators to chart");
         frame.setContentPane(panel);
         frame.pack();
         RefineryUtilities.centerFrameOnScreen(frame);
         frame.setVisible(true);
     }
 
-    private static org.jfree.data.time.TimeSeries buildChartBarSeries(
-        BarSeries barSeries,
-        Indicator<Num> indicator,
-        String name) {
-        org.jfree.data.time.TimeSeries chartBarSeries = new org.jfree.data.time.TimeSeries(name);
+    private static org.jfree.data.time.TimeSeries buildChartSeries(
+        BarSeries barSeries, Indicator<Num> indicator, String name) {
+        var chartSeries = new org.jfree.data.time.TimeSeries(name);
         for (int i = 0; i < barSeries.getBarCount(); i++) {
-            Bar bar = barSeries.getBar(i);
-            chartBarSeries.addOrUpdate(
+            var bar = barSeries.getBar(i);
+            chartSeries.addOrUpdate(
                 new Millisecond(
                     bar.getEndTime().getNano() / 1000000,
                     bar.getEndTime().getSecond(),
@@ -105,12 +90,6 @@ class RamseesApplicationTests {
                     bar.getEndTime().getYear()),
                 indicator.getValue(i).doubleValue());
         }
-        return chartBarSeries;
+        return chartSeries;
     }
-
-    @Bean
-    public RestTemplate getRestTemplate() {
-        return new RestTemplate();
-    }
-
 }
