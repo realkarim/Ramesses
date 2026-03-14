@@ -9,10 +9,10 @@
         <version>2.6.4</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.tyche</groupId>
-    <artifactId>ramsees</artifactId>
+    <groupId>com.realkarim.ramesses</groupId>
+    <artifactId>ramesses</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>ramsees</name>
+    <name>ramesses</name>
     <description>Best project ever</description>
     <properties>
         <java.version>11</java.version>

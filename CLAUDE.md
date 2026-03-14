@@ -1,4 +1,4 @@
-# Ramsees — Claude Instructions
+# Ramesses — Claude Instructions
 
 ## Project References
 

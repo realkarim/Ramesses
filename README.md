@@ -1,4 +1,4 @@
-# Ramsees
+# Ramesses
 
 An automated cryptocurrency trading bot that monitors ETH price on Binance and executes buy/sell trades based on MACD technical analysis.
 
@@ -68,7 +68,7 @@ Run `MacDStrategyTest` to backtest the MACD strategy against historical data fet
 
 ## Architecture
 
-Ramsees follows Hexagonal Architecture (Ports & Adapters). See [docs/Architecture.md](docs/Architecture.md) for a full breakdown.
+Ramesses follows Hexagonal Architecture (Ports & Adapters). See [docs/Architecture.md](docs/Architecture.md) for a full breakdown.
 
 ```
 SchedulerAdapter → CheckMarketUseCase → BinanceMarketDataAdapter
