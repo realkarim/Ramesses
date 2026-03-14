@@ -1,6 +1,6 @@
 # Architecture
 
-Ramsees follows **Hexagonal Architecture** (also known as Ports & Adapters). The core principle is that business logic has zero knowledge of external systems — it defines what it needs via interfaces (ports), and external systems implement those interfaces (adapters).
+Ramesses follows **Hexagonal Architecture** (also known as Ports & Adapters). The core principle is that business logic has zero knowledge of external systems — it defines what it needs via interfaces (ports), and external systems implement those interfaces (adapters).
 
 ## Why Hexagonal
 
@@ -13,7 +13,7 @@ The trading domain — "given market data, decide when to buy or sell" — is pu
 ## Package Structure
 
 ```
-com.tyche.ramsees/
+com.tyche.ramesses/
 ├── domain/                        # Pure business logic — no Spring, no Binance
 │   ├── model/
 │   │   ├── MarketBar              # OHLCV candlestick bar

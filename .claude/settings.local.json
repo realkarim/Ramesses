@@ -1,10 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mvn compile:*)",
-      "Bash(./mvnw compile:*)",
+      "Bash(mvn:*)",
+      "Bash(./mvnw:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(tail:*)",
       "Bash(rm:*)",
-      "Bash(./mvnw test-compile:*)"
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(java:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(sed:*)"
     ]
   }
 }
