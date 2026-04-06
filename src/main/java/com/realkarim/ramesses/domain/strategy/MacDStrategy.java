@@ -71,13 +71,22 @@ public class MacDStrategy implements TradingStrategy {
         macdSignal = new EMAIndicator(macd, config.getMacdSignalLength());
         trendEma = new EMAIndicator(closePrice, config.getTrendEmaLength());
 
+        strategy = buildTa4jStrategy(series, config);
+    }
+
+    static BaseStrategy buildTa4jStrategy(BarSeries series, StrategyConfigProps config) {
+        var closePrice = new ClosePriceIndicator(series);
+        var macd = new MACDIndicator(closePrice, config.getMacdShort(), config.getMacdLong());
+        var macdSignal = new EMAIndicator(macd, config.getMacdSignalLength());
+        var trendEma = new EMAIndicator(closePrice, config.getTrendEmaLength());
+
         var buyRule = new CrossedUpIndicatorRule(macd, macdSignal)
             .and((i, tr) -> macd.getValue(i).doubleValue() < 0)
             .and(new UnderIndicatorRule(closePrice, trendEma));
         var sellRule = new StopGainRule(closePrice, config.getStopGain())
             .or(new StopLossRule(closePrice, config.getStopLoss()));
 
-        strategy = new BaseStrategy(buyRule, sellRule);
+        return new BaseStrategy(buyRule, sellRule);
     }
 
     // Appends only bars with a timestamp later than the last bar already in the series
