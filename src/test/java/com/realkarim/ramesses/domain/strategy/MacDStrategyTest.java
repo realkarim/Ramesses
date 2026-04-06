@@ -1,6 +1,7 @@
 package com.realkarim.ramesses.domain.strategy;
 
-import com.realkarim.ramesses.adapter.out.InMemoryMarketDataAdapter;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.realkarim.ramesses.config.StrategyConfigProps;
 import com.realkarim.ramesses.domain.model.MarketBar;
 import com.realkarim.ramesses.util.BinanceHistoricalFetcher;
@@ -16,13 +17,6 @@ import org.ta4j.core.analysis.criteria.pnl.GrossReturnCriterion;
 import org.ta4j.core.analysis.criteria.pnl.NetProfitCriterion;
 import org.ta4j.core.cost.LinearTransactionCostModel;
 import org.ta4j.core.cost.ZeroCostModel;
-import org.ta4j.core.indicators.EMAIndicator;
-import org.ta4j.core.indicators.MACDIndicator;
-import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
-import org.ta4j.core.rules.CrossedUpIndicatorRule;
-import org.ta4j.core.rules.StopGainRule;
-import org.ta4j.core.rules.StopLossRule;
-import org.ta4j.core.rules.UnderIndicatorRule;
 
 @Slf4j
 class MacDStrategyTest {
@@ -37,40 +31,42 @@ class MacDStrategyTest {
     }
 
     private void runBacktest(List<MarketBar> bars, StrategyConfigProps config) {
+        assertTrue(!bars.isEmpty(), "Historical data should not be empty");
+
         var series = new BaseBarSeriesBuilder().withName("BACKTEST").build();
         for (var bar : bars) {
             series.addBar(bar.getTimestamp(), bar.getOpen(), bar.getHigh(),
                 bar.getLow(), bar.getClose(), bar.getVolume());
         }
 
-        var closePrice = new ClosePriceIndicator(series);
-        var macd = new MACDIndicator(closePrice, config.getMacdShort(), config.getMacdLong());
-        var macdSignal = new EMAIndicator(macd, config.getMacdSignalLength());
-        var trendEma = new EMAIndicator(closePrice, config.getTrendEmaLength());
-
-        var buyRule = new CrossedUpIndicatorRule(macd, macdSignal)
-            .and((i, tr) -> macd.getValue(i).doubleValue() < 0)
-            .and(new UnderIndicatorRule(closePrice, trendEma));
-        var sellRule = new StopGainRule(closePrice, config.getStopGain())
-            .or(new StopLossRule(closePrice, config.getStopLoss()));
-
-        var strategy = new org.ta4j.core.BaseStrategy(buyRule, sellRule);
+        var strategy = MacDStrategy.buildTa4jStrategy(series, config);
 
         var seriesManager = new BarSeriesManager(series,
             new LinearTransactionCostModel(0.001), new ZeroCostModel());
         var tradingRecord = seriesManager.run(strategy,
             HISTORICAL_DATA_MINIMUM_LENGTH, series.getBarCount());
 
-        var totalReturn = new GrossReturnCriterion();
-        log.info("Total return: {}", totalReturn.calculate(series, tradingRecord));
-        log.info("Net profit: {}", new NetProfitCriterion().calculate(series, tradingRecord));
-        log.info("Number of positions: {}", new NumberOfPositionsCriterion().calculate(series, tradingRecord));
-        log.info("Number of winning positions: {}", new NumberOfWinningPositionsCriterion().calculate(series, tradingRecord));
-        log.info("vs buy-and-hold: {}", new VersusBuyAndHoldCriterion(totalReturn).calculate(series, tradingRecord));
+        var grossReturn = new GrossReturnCriterion();
+        double totalReturn = grossReturn.calculate(series, tradingRecord).doubleValue();
+        double netProfit = new NetProfitCriterion().calculate(series, tradingRecord).doubleValue();
+        int numberOfPositions = (int) new NumberOfPositionsCriterion().calculate(series, tradingRecord).doubleValue();
+        int winningPositions = (int) new NumberOfWinningPositionsCriterion().calculate(series, tradingRecord).doubleValue();
+        double vsBuyAndHold = new VersusBuyAndHoldCriterion(grossReturn).calculate(series, tradingRecord).doubleValue();
+
+        log.info("Total return: {}", totalReturn);
+        log.info("Net profit: {}", netProfit);
+        log.info("Number of positions: {}", numberOfPositions);
+        log.info("Number of winning positions: {}", winningPositions);
+        log.info("vs buy-and-hold: {}", vsBuyAndHold);
 
         for (var p : tradingRecord.getPositions()) {
             log.info(p.toString());
         }
+
+        assertTrue(numberOfPositions > 0, "Strategy should have entered the market at least once");
+        assertTrue(totalReturn > 0, "Gross return should be a positive value");
+        assertTrue(Double.isFinite(totalReturn), "Total return should be a finite number");
+        assertTrue(Double.isFinite(netProfit), "Net profit should be a finite number");
     }
 
     private StrategyConfigProps defaultConfig() {
