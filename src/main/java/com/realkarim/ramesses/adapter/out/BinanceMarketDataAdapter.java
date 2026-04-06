@@ -20,6 +20,21 @@ import org.json.JSONArray;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+/**
+ * {@link MarketDataPort} adapter that fetches OHLCV bars from the Binance REST API.
+ *
+ * <p>Uses a lazy-initialisation and caching strategy to minimise API calls:
+ * <ul>
+ *   <li><b>First call</b>: fetches up to 1 000 historical bars to warm the series.</li>
+ *   <li><b>Subsequent calls</b>: fetches only the latest bar and appends it.</li>
+ * </ul>
+ *
+ * <p>Duplicate bars (same timestamp as the most recent cached bar) are silently
+ * dropped by {@link #appendUnique(java.util.List)}. The cache is bounded to
+ * {@code maxBars} entries — oldest bars are evicted when the limit is exceeded.
+ *
+ * <p>All bar timestamps are normalised to UTC regardless of the host machine's timezone.
+ */
 @Service
 @Slf4j
 public class BinanceMarketDataAdapter implements MarketDataPort {
@@ -54,6 +69,10 @@ public class BinanceMarketDataAdapter implements MarketDataPort {
         return Collections.unmodifiableList(bars);
     }
 
+    /**
+     * Appends incoming bars that are not duplicates of the last cached bar.
+     * Evicts the oldest bar when the cache exceeds {@code maxBars}.
+     */
     private void appendUnique(List<MarketBar> incoming) {
         for (var bar : incoming) {
             if (bars.isEmpty() || !bar.getTimestamp().equals(bars.get(bars.size() - 1).getTimestamp())) {

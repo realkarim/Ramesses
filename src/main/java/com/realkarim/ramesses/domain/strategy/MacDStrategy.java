@@ -17,6 +17,30 @@ import org.ta4j.core.rules.StopGainRule;
 import org.ta4j.core.rules.StopLossRule;
 import org.ta4j.core.rules.UnderIndicatorRule;
 
+/**
+ * MACD-based trading strategy implementation.
+ *
+ * <p>Uses the Moving Average Convergence Divergence (MACD) indicator combined with
+ * a trend-following EMA filter to generate buy and sell signals.
+ *
+ * <h3>Buy rule (all conditions must be true):</h3>
+ * <ol>
+ *   <li>MACD line crosses above the signal line (bullish crossover)</li>
+ *   <li>MACD value is below zero (crossover happens in bearish territory,
+ *       indicating a reversal from oversold conditions)</li>
+ *   <li>Price is below the trend EMA (confirming the asset is still undervalued
+ *       relative to the longer-term trend)</li>
+ * </ol>
+ *
+ * <h3>Sell rule (either condition triggers an exit):</h3>
+ * <ul>
+ *   <li>Stop-gain: price rises by the configured percentage above entry</li>
+ *   <li>Stop-loss: price falls by the configured percentage below entry</li>
+ * </ul>
+ *
+ * <p>The strategy lazily initialises its TA4J bar series on the first call to
+ * {@link #evaluate(java.util.List)}, then incrementally appends only new bars on subsequent calls.
+ */
 public class MacDStrategy implements TradingStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(MacDStrategy.class);
@@ -36,6 +60,13 @@ public class MacDStrategy implements TradingStrategy {
         this.maxBarCount = maxBarCount;
     }
 
+    /**
+     * Evaluates the latest bars and returns a trade signal.
+     *
+     * <p>On the first invocation the full bar history is loaded into the series;
+     * subsequent calls append only bars newer than the last known timestamp.
+     * The strategy then checks entry/exit rules against the most recent bar index.
+     */
     @Override
     public TradeSignal evaluate(List<MarketBar> bars) {
         if (series == null) {
@@ -74,6 +105,12 @@ public class MacDStrategy implements TradingStrategy {
         strategy = buildTa4jStrategy(series, config);
     }
 
+    /**
+     * Builds the TA4J strategy (buy + sell rules) from the given series and config.
+     *
+     * <p>Exposed as package-private static so backtests can reuse the exact same
+     * rule definitions without duplicating the indicator wiring.
+     */
     static BaseStrategy buildTa4jStrategy(BarSeries series, StrategyConfigProps config) {
         var closePrice = new ClosePriceIndicator(series);
         var macd = new MACDIndicator(closePrice, config.getMacdShort(), config.getMacdLong());
@@ -89,7 +126,7 @@ public class MacDStrategy implements TradingStrategy {
         return new BaseStrategy(buyRule, sellRule);
     }
 
-    // Appends only bars with a timestamp later than the last bar already in the series
+    /** Appends only bars with a timestamp later than the last bar already in the series. */
     private void appendNewBars(List<MarketBar> bars) {
         var lastTime = series.getLastBar().getEndTime();
         for (var bar : bars) {

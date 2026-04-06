@@ -9,6 +9,28 @@ import com.realkarim.ramesses.port.out.TradeExecutionPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Core use case that orchestrates one iteration of the trading loop.
+ *
+ * <p>Each call to {@link #checkMarket()} performs the following steps:
+ * <ol>
+ *   <li>Fetches the latest OHLCV bars via {@link MarketDataPort}.</li>
+ *   <li>Passes them to the active {@link TradingStrategy} to get a signal.</li>
+ *   <li>If the signal and portfolio step agree (BUY when BUY_NEXT, SELL when SELL_NEXT),
+ *       executes the trade via {@link TradeExecutionPort}.</li>
+ *   <li>Logs portfolio metrics: equity, realized P&amp;L, and — when a position is
+ *       open — unrealized P&amp;L.</li>
+ * </ol>
+ *
+ * <h3>P&amp;L calculations</h3>
+ * <ul>
+ *   <li><b>Cost basis</b> = (ETH holdings &times; entry price) / (1 &minus; fee),
+ *       reflecting the total USDT spent including the buy-side fee.</li>
+ *   <li><b>Sale proceeds</b> = ETH holdings &times; current price &times; (1 &minus; fee),
+ *       reflecting the USDT received after the sell-side fee.</li>
+ *   <li><b>Unrealized P&amp;L</b> = sale proceeds &minus; cost basis.</li>
+ * </ul>
+ */
 @Slf4j
 @RequiredArgsConstructor
 public class CheckMarketUseCase implements MarketCheckPort {
